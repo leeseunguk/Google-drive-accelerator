@@ -1,0 +1,17 @@
+﻿# rclone-gdrive-mount 설정 파일. 필요한 값만 바꿔서 쓰세요.
+
+# rclone 실행 파일 (Rclone UI가 설치한 것을 우선 사용, 없으면 PATH의 rclone)
+$RcloneExe = "$env:LOCALAPPDATA\com.rclone.ui\bin\rclone.exe"
+if (-not (Test-Path $RcloneExe)) { $RcloneExe = (Get-Command rclone -ErrorAction Stop).Source }
+
+# rclone 설정 파일 (Rclone UI 기본 위치)
+$RcloneConf = "$env:LOCALAPPDATA\com.rclone.ui\configs\default\rclone.conf"
+
+$Remote       = "my_gdrive:"        # 마운트할 remote (하위 폴더 지정 가능: "my_gdrive:data")
+$DriveLetter  = "R:"                # 사용할 드라이브 문자 (G:는 Drive for desktop이 사용 중)
+$CacheDir     = "D:\rclone-cache\gdrive"
+$CacheMaxSize = "100G"              # 로컬 캐시 최대 용량
+$CacheMaxAge  = "168h"              # 캐시 보관 기간
+$ChunkStreams = 8                   # 파일 하나를 동시에 읽는 스트림 수 (속도 핵심)
+$ChunkSize    = "64M"
+$RcPort       = 5573                # 안전한 해제용 원격 제어 포트 (Rclone UI는 5572 사용)
