@@ -2,8 +2,8 @@
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\config.ps1"
 
-if (-not (Test-Path "${env:ProgramFiles(x86)}\WinFsp\bin\winfsp-x64.dll")) {
-    Write-Host "WinFsp가 없습니다. 먼저 설치하세요: winget install WinFsp.WinFsp" -ForegroundColor Red
+if (-not $RcloneExe -or -not (Test-Path "${env:ProgramFiles(x86)}\WinFsp\bin\winfsp-x64.dll")) {
+    Write-Host "rclone 또는 WinFsp가 없습니다. 먼저 설치.cmd를 실행하세요." -ForegroundColor Red
     exit 1
 }
 if (Test-Path "$DriveLetter\") {
