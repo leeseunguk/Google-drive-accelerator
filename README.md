@@ -73,10 +73,10 @@ Google Drive for desktop(G:)과 같은 Drive를 쓰면서도 **큰 파일을 처
 |---|---|---|
 | 1. rclone | 없으면 `winget install Rclone.Rclone` | Rclone UI 내장본이나 PATH의 rclone이 있으면 그대로 사용 |
 | 2. WinFsp | 없으면 `winget install WinFsp.WinFsp` | 관리자 확인(UAC) 창에서 **예** |
-| 3. Google Drive 연결 | remote(`my_gdrive:`)가 없으면 client ID 입력 → Google 로그인 | 처음 한 번 |
+| 3. Google Drive 연결 | remote(`my_gdrive:`)가 없으면 client ID 만들기 마법사 → Google 로그인 | 처음 한 번 |
 | 4. 자동 시작 | 로그인할 때 자동 마운트할지 질문 | 선택 |
 
-**새 PC에서 실행한 화면** (3단계에서 client ID를 기다리는 상태):
+**새 PC에서 실행한 화면** (3단계 client ID 만들기 마법사, 아래 [Google client ID 만들기](#google-client-id-만들기) 참고):
 
 ![새 PC에서 설치.cmd 실행](docs/images/install-new-pc.png)
 
@@ -95,19 +95,43 @@ Google Drive for desktop(G:)과 같은 Drive를 쓰면서도 **큰 파일을 처
 
 ## Google client ID 만들기
 
-`설치.cmd` 3단계에서 브라우저로 Google Cloud Console 페이지 두 개를 열어 줍니다. 아래 순서대로 진행한 뒤 콘솔 창에 값을 붙여 넣으세요. 처음 한 번, 5분 정도 걸립니다.
+`설치.cmd`를 실행하면 3단계에서 **client ID 만들기 마법사**가 시작됩니다. 절차는 [rclone 공식 문서](https://rclone.org/drive/#making-your-own-client-id)를 따르되, 손이 덜 가도록 다음을 자동으로 해 줍니다.
 
-1. **프로젝트**: 화면 위쪽 프로젝트 선택에서 새 프로젝트를 만들거나 기존 것을 고릅니다.
-2. **Drive API 사용**: "Google Drive API" 페이지에서 **사용**을 누릅니다.
-3. **동의 화면**: "Google 인증 플랫폼"에서 **시작하기** → 앱 이름과 이메일 입력 → 대상은 **외부**로 만듭니다.
-4. **앱 게시**: "대상(Audience)" 메뉴에서 **앱 게시**를 눌러 **프로덕션** 상태로 바꿉니다.
-   > ⚠ 테스트 상태로 두면 로그인이 **7일마다 만료**되어 마운트가 끊깁니다.
-5. **클라이언트 만들기**: "클라이언트" 메뉴 → **클라이언트 만들기** → 애플리케이션 유형 **데스크톱 앱** → 만들기
-6. **붙여 넣기**: 표시된 **클라이언트 ID**와 **클라이언트 보안 비밀**을 콘솔 창에 차례로 붙여 넣습니다.
+- **페이지 자동 열기**: 단계마다 해당 Console 페이지를 브라우저로 바로 엽니다. 메뉴를 찾아다닐 필요가 없습니다.
+- **범위 미리 복사**: 4단계에서 넣을 권한 범위 문자열을 클립보드에 미리 복사해 둡니다. 붙여 넣기(Ctrl+V)만 하면 됩니다.
+- **ID 자동 읽기**: 마지막에 **JSON 다운로드**를 누르면 다운로드 폴더의 `client_secret_*.json`을 자동으로 읽습니다. ID와 비밀을 복사해 붙여 넣을 필요가 없습니다.
 
-그다음 Google 로그인 창이 열립니다.
-- 검증받지 않은 앱이라 "Google에서 확인하지 않은 앱" 경고가 나옵니다. 내가 만든 앱이므로 **고급 → (앱 이름)(으)로 이동**을 누르고 **허용**합니다.
+> 💡 client ID는 **아무 Google 계정**으로 만들어도 됩니다. 마운트할 Drive 계정과 달라도 됩니다. 한 번 만들면 다른 PC에서도 그대로 씁니다.
+
+| 단계 | 열리는 페이지 | 할 일 |
+|---|---|---|
+| 1. 프로젝트 만들기 | [새 프로젝트](https://console.cloud.google.com/projectcreate) | 이름 `rclone`(아무거나) → **만들기**. 화면 위쪽에 그 프로젝트가 선택됐는지 확인 |
+| 2. Drive API 켜기 | [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) | **사용** (이미 "관리"가 보이면 켜진 상태) |
+| 3. 동의 화면 | [Google 인증 플랫폼 시작](https://console.cloud.google.com/auth/overview/create) | 앱 이름 `rclone`, 지원 이메일 → 대상 **외부** → 연락처 이메일 → 약관 동의 → **만들기** |
+| 4. 권한 범위 | [데이터 액세스](https://console.cloud.google.com/auth/scopes) | **범위 추가 또는 삭제** → 아래쪽 "수동으로 범위 추가" 칸에 **Ctrl+V** → **표에 추가** → **업데이트** → 맨 아래 **저장** |
+| 5. 게시 | [대상](https://console.cloud.google.com/auth/audience) | 테스트 사용자 **+ Add users**에 내 이메일 → **저장**, 그다음 **앱 게시** → **확인** |
+| 6. 클라이언트 | [클라이언트 만들기](https://console.cloud.google.com/auth/clients/create) | 유형 **데스크톱 앱** → **만들기** → **JSON 다운로드** |
+
+4단계에서 클립보드에 복사되는 값은 rclone 문서가 권장하는 범위 세 개입니다.
+```
+https://www.googleapis.com/auth/docs,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/drive.metadata.readonly
+```
+
+마법사가 끝나면 Google 로그인 창이 열립니다. **마운트할 Drive 계정**으로 로그인하세요.
+- **"Google에서 확인하지 않은 앱" 경고가 나옵니다.** **고급 → rclone(으)로 이동(안전하지 않음) → 계속**을 누르면 됩니다. 내가 만든 앱이라 Google 검증을 받지 않았을 뿐이고, 사용자 100명 미만의 개인용 앱은 검증이 필요 없습니다.
 - 로그인이 끝나면 스크립트가 Drive 접속을 실제로 확인한 뒤 "연결됨"을 표시합니다.
+
+### 꼭 지켜야 할 것: 앱 게시
+5단계에서 **앱 게시**를 하지 않고 "테스트" 상태로 두면 로그인이 **7일마다 만료**되어 마운트가 끊깁니다. 게시 상태가 **프로덕션 단계**로 바뀌었는지 꼭 확인하세요.
+
+### 앱 게시 버튼이 회색일 때
+Google이 게시 전에 홈페이지 주소와 개인정보처리방침 주소를 요구하는 경우입니다(rclone 문서에 안내된 상황).
+1. [브랜딩](https://console.cloud.google.com/auth/branding) 화면에서 "애플리케이션 홈페이지"와 "개인정보처리방침 링크"를 채웁니다. 내 도메인이 없으면 무료 GitHub Pages 주소도 됩니다.
+2. "승인된 도메인"에 그 주소의 도메인을 넣고 **저장**합니다.
+3. [대상](https://console.cloud.google.com/auth/audience) 화면으로 돌아가면 **앱 게시**를 누를 수 있습니다.
+
+### JSON 파일을 못 찾았다고 나올 때
+다운로드 창을 닫았거나 다른 폴더에 저장한 경우입니다. 마법사가 직접 입력을 받습니다. [클라이언트 목록](https://console.cloud.google.com/auth/clients)에서 방금 만든 클라이언트를 열어 **클라이언트 ID**와 **클라이언트 보안 비밀**을 복사해 차례로 붙여 넣으세요.
 
 ### 왜 client ID를 직접 만들어야 하나요?
 - **공용 ID는 곧 막힙니다.** rclone 기본 공용 client ID는 2026년 중 사용이 중단될 예정이라고 rclone 1.75가 직접 경고합니다. 그 전에도 여러 사람이 나눠 써서 느리거나 제한되기 쉽습니다.

@@ -5,6 +5,61 @@ $RemoteName = ($Remote -split ":")[0]
 function Step($m) { Write-Host "`n== $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "   $m" -ForegroundColor Green }
 
+function Wait-Step($n, $title, $url, [string[]]$lines) {
+    Write-Host "`n   [$n/6] $title" -ForegroundColor Yellow
+    foreach ($l in $lines) { Write-Host "         $l" }
+    if ($url) { Start-Process $url; Write-Host "         (브라우저에 해당 페이지를 열었습니다)" -ForegroundColor DarkGray }
+    Read-Host "         다 했으면 Enter" | Out-Null
+}
+
+function New-ClientIdWizard {
+    Write-Host @"
+   내 Google client ID를 만듭니다(처음 한 번, 5분 정도).
+   - 아무 Google 계정으로 만들어도 됩니다. 마운트할 Drive 계정과 달라도 됩니다.
+   - 단계마다 필요한 페이지를 열어 드립니다. 화면에서 [굵은 버튼] 만 누르면 됩니다.
+"@
+    $started = Get-Date
+    Wait-Step 1 "프로젝트 만들기" "https://console.cloud.google.com/projectcreate" @(
+        "프로젝트 이름: rclone (아무거나) -> [만들기]",
+        "만든 뒤 화면 위쪽 프로젝트 선택 칸에 그 프로젝트가 선택됐는지 확인")
+    Wait-Step 2 "Google Drive API 켜기" "https://console.cloud.google.com/apis/library/drive.googleapis.com" @(
+        "[사용] 을 누릅니다 (이미 '관리' 버튼이 보이면 켜진 상태)")
+    Wait-Step 3 "동의 화면 만들기" "https://console.cloud.google.com/auth/overview/create" @(
+        "앱 이름: rclone, 사용자 지원 이메일: 내 이메일 -> [다음]",
+        "대상: [외부] -> [다음] -> 연락처 이메일: 내 이메일 -> [다음]",
+        "약관 동의 체크 -> [만들기]  (이미 만들어져 있으면 건너뛰기)")
+    $scopes = "https://www.googleapis.com/auth/docs,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/drive.metadata.readonly"
+    Set-Clipboard -Value $scopes
+    Wait-Step 4 "권한 범위 추가 (클립보드에 미리 복사해 두었습니다)" "https://console.cloud.google.com/auth/scopes" @(
+        "데이터 액세스 화면: [범위 추가 또는 삭제] -> 패널 아래쪽 '수동으로 범위 추가' 칸에 Ctrl+V",
+        "[표에 추가] -> [업데이트] -> 페이지 맨 아래 [저장]")
+    Wait-Step 5 "내 계정 추가하고 앱 게시" "https://console.cloud.google.com/auth/audience" @(
+        "테스트 사용자 [+ Add users] -> 내 이메일 -> [저장]",
+        "[앱 게시] -> [확인]  ->  게시 상태가 '프로덕션 단계'로 바뀌면 성공",
+        "(게시하지 않으면 로그인이 7일마다 만료됩니다)",
+        "([앱 게시]가 회색이면 README의 '앱 게시 버튼이 회색일 때'를 보세요)")
+    Wait-Step 6 "클라이언트 만들기" "https://console.cloud.google.com/auth/clients/create" @(
+        "애플리케이션 유형: [데스크톱 앱] -> 이름은 그대로 -> [만들기]",
+        "나오는 창에서 [JSON 다운로드] 를 누르면 자동으로 읽습니다")
+
+    # 다운로드 폴더에서 방금 받은 client_secret_*.json을 찾습니다.
+    $dl = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+    $f = Get-ChildItem $dl -Filter "client_secret_*.json" -ErrorAction SilentlyContinue |
+         Where-Object { $_.LastWriteTime -ge $started.AddMinutes(-5) } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($f) {
+        $j = (Get-Content $f.FullName -Raw | ConvertFrom-Json).installed
+        if ($j.client_id -and $j.client_secret) {
+            Write-Host "`n   다운로드한 파일에서 읽었습니다: $($f.Name)" -ForegroundColor Green
+            return $j
+        }
+    }
+    Write-Host "`n   JSON 파일을 찾지 못했습니다. 창에 보이는 값을 복사해 붙여 넣으세요."
+    $id  = (Read-Host "   클라이언트 ID").Trim()
+    $sec = (Read-Host "   클라이언트 보안 비밀").Trim()
+    if (-not $id -or -not $sec) { Write-Host "값이 비어 있습니다. 다시 실행하세요." -ForegroundColor Red; exit 1 }
+    return [pscustomobject]@{ client_id = $id; client_secret = $sec }
+}
+
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Host "winget이 없습니다. Microsoft Store에서 '앱 설치 관리자'를 설치한 뒤 다시 실행하세요." -ForegroundColor Red
     exit 1
@@ -32,25 +87,17 @@ Step "3/4 Google Drive 연결 ($RemoteName)"
 $remotes = & $RcloneExe --config $RcloneConf listremotes 2>$null
 if ($remotes -contains "${RemoteName}:") { Ok "이미 설정됨 ($RcloneConf)" }
 else {
-    # rclone 공용 client ID는 2026년 중 사용 중단 예정이라 내 client ID만 지원합니다.
+    # rclone 공용 client ID는 2026년 중 사용 중단 예정이라 내 client ID를 만듭니다.
+    # 절차는 rclone 공식 문서(https://rclone.org/drive/#making-your-own-client-id)를 따릅니다.
+    $clientJson = New-ClientIdWizard
+    $id = $clientJson.client_id; $sec = $clientJson.client_secret
+    $kv = @("scope=drive", "client_id=$id", "client_secret=$sec")
     Write-Host @"
-   내 Google client ID가 필요합니다(처음 한 번, 5분 정도).
-   브라우저에서 Google Cloud Console을 엽니다. 아래 순서대로 진행하세요.
-   1) 프로젝트를 하나 만들거나 고릅니다.
-   2) 'Google Drive API'에서 [사용] 을 누릅니다.
-   3) 'Google 인증 플랫폼'에서 시작하기 -> 앱 이름/이메일 입력 -> 대상: 외부 로 만듭니다.
-   4) 대상(Audience) 화면에서 [앱 게시] 를 눌러 '프로덕션'으로 바꿉니다.
-      (테스트 상태로 두면 로그인이 7일마다 만료됩니다)
-   5) 클라이언트 -> [클라이언트 만들기] -> 유형 '데스크톱 앱' -> 만들기
-   6) 표시되는 클라이언트 ID와 보안 비밀을 아래에 붙여 넣습니다.
+
+   브라우저에서 Google 로그인 창이 열립니다. 마운트할 Drive 계정으로 로그인하세요.
+   'Google에서 확인하지 않은 앱' 경고가 나오면: [고급] -> [rclone(으)로 이동(안전하지 않음)] -> [계속]
+   (내가 만든 앱이라 검증을 받지 않았을 뿐입니다. 개인용이면 검증이 필요 없습니다)
 "@
-    Start-Process "https://console.cloud.google.com/apis/library/drive.googleapis.com"
-    Start-Process "https://console.cloud.google.com/auth/overview"
-    $id  = Read-Host "   클라이언트 ID"
-    $sec = Read-Host "   클라이언트 보안 비밀"
-    if (-not $id.Trim() -or -not $sec.Trim()) { Write-Host "값이 비어 있습니다. 다시 실행하세요." -ForegroundColor Red; exit 1 }
-    $kv = @("scope=drive", "client_id=$($id.Trim())", "client_secret=$($sec.Trim())")
-    Write-Host "`n   브라우저에서 Google 로그인 창이 열립니다. 로그인 후 [허용]을 누르세요."
     New-Item -ItemType Directory -Force (Split-Path $RcloneConf) | Out-Null
     & $RcloneExe --config $RcloneConf config create $RemoteName drive @kv
     $remotes = & $RcloneExe --config $RcloneConf listremotes 2>$null
