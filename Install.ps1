@@ -15,30 +15,38 @@ function Wait-Step($n, $title, $url, [string[]]$lines) {
 function New-ClientIdWizard {
     Write-Host @"
    내 Google client ID를 만듭니다(처음 한 번, 5분 정도).
+   - 만드는 곳: Google Cloud Console  https://console.cloud.google.com/
+     처음이면 로그인 후 약관에 동의하세요. 비용·결제 정보는 필요 없습니다.
    - 아무 Google 계정으로 만들어도 됩니다. 마운트할 Drive 계정과 달라도 됩니다.
    - 단계마다 필요한 페이지를 열어 드립니다. 화면에서 [굵은 버튼] 만 누르면 됩니다.
 "@
     $started = Get-Date
     Wait-Step 1 "프로젝트 만들기" "https://console.cloud.google.com/projectcreate" @(
+        "메뉴 위치: 화면 위쪽 프로젝트 선택 칸 -> [새 프로젝트]",
         "프로젝트 이름: rclone (아무거나) -> [만들기]",
         "만든 뒤 화면 위쪽 프로젝트 선택 칸에 그 프로젝트가 선택됐는지 확인")
     Wait-Step 2 "Google Drive API 켜기" "https://console.cloud.google.com/apis/library/drive.googleapis.com" @(
+        "메뉴 위치: 왼쪽 위 메뉴 -> API 및 서비스 -> 라이브러리 -> 'Google Drive API' 검색",
         "[사용] 을 누릅니다 (이미 '관리' 버튼이 보이면 켜진 상태)")
     Wait-Step 3 "동의 화면 만들기" "https://console.cloud.google.com/auth/overview/create" @(
+        "메뉴 위치: 왼쪽 위 메뉴 -> Google 인증 플랫폼 -> 개요 -> [시작하기]",
         "앱 이름: rclone, 사용자 지원 이메일: 내 이메일 -> [다음]",
         "대상: [외부] -> [다음] -> 연락처 이메일: 내 이메일 -> [다음]",
         "약관 동의 체크 -> [만들기]  (이미 만들어져 있으면 건너뛰기)")
     $scopes = "https://www.googleapis.com/auth/docs,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/drive.metadata.readonly"
     Set-Clipboard -Value $scopes
     Wait-Step 4 "권한 범위 추가 (클립보드에 미리 복사해 두었습니다)" "https://console.cloud.google.com/auth/scopes" @(
-        "데이터 액세스 화면: [범위 추가 또는 삭제] -> 패널 아래쪽 '수동으로 범위 추가' 칸에 Ctrl+V",
+        "메뉴 위치: 왼쪽 위 메뉴 -> Google 인증 플랫폼 -> 데이터 액세스",
+        "[범위 추가 또는 삭제] -> 패널 아래쪽 '수동으로 범위 추가' 칸에 Ctrl+V",
         "[표에 추가] -> [업데이트] -> 페이지 맨 아래 [저장]")
     Wait-Step 5 "내 계정 추가하고 앱 게시" "https://console.cloud.google.com/auth/audience" @(
+        "메뉴 위치: 왼쪽 위 메뉴 -> Google 인증 플랫폼 -> 대상",
         "테스트 사용자 [+ Add users] -> 내 이메일 -> [저장]",
         "[앱 게시] -> [확인]  ->  게시 상태가 '프로덕션 단계'로 바뀌면 성공",
         "(게시하지 않으면 로그인이 7일마다 만료됩니다)",
         "([앱 게시]가 회색이면 README의 '앱 게시 버튼이 회색일 때'를 보세요)")
     Wait-Step 6 "클라이언트 만들기" "https://console.cloud.google.com/auth/clients/create" @(
+        "메뉴 위치: 왼쪽 위 메뉴 -> Google 인증 플랫폼 -> 클라이언트 -> [클라이언트 만들기]",
         "애플리케이션 유형: [데스크톱 앱] -> 이름은 그대로 -> [만들기]",
         "나오는 창에서 [JSON 다운로드] 를 누르면 자동으로 읽습니다")
 

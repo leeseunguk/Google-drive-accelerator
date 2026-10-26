@@ -101,16 +101,27 @@ Google Drive for desktop(G:)과 같은 Drive를 쓰면서도 **큰 파일을 처
 - **범위 미리 복사**: 4단계에서 넣을 권한 범위 문자열을 클립보드에 미리 복사해 둡니다. 붙여 넣기(Ctrl+V)만 하면 됩니다.
 - **ID 자동 읽기**: 마지막에 **JSON 다운로드**를 누르면 다운로드 폴더의 `client_secret_*.json`을 자동으로 읽습니다. ID와 비밀을 복사해 붙여 넣을 필요가 없습니다.
 
+### 어디서 만드나요?
+client ID는 **Google Cloud Console**에서 만듭니다.
+
+1. 브라우저에서 **<https://console.cloud.google.com/>** 에 접속해 Google 계정으로 로그인합니다.
+2. 처음 접속하면 국가 선택과 서비스 약관 동의 화면이 나옵니다. 동의하고 넘어가면 됩니다. client ID를 만드는 데는 비용이 들지 않고 결제 정보도 필요 없습니다.
+3. 필요한 메뉴는 모두 왼쪽 위 **≡(메뉴)** 안에 있습니다. 화면 위쪽 검색창에 메뉴 이름을 입력해 찾아도 됩니다.
+   - **API 및 서비스** → **라이브러리**: Drive API를 켜는 곳
+   - **Google 인증 플랫폼**(영문 화면은 Google Auth Platform): 동의 화면(개요·브랜딩), **대상**, **데이터 액세스**, **클라이언트**가 모두 여기에 있습니다.
+
+`설치.cmd` 마법사는 각 단계의 페이지를 자동으로 열어 주므로 보통은 메뉴를 찾을 필요가 없습니다. 페이지가 안 열리거나 다른 프로젝트가 선택돼 있으면 아래 표의 **메뉴 위치**를 따라 들어가세요.
+
 > 💡 client ID는 **아무 Google 계정**으로 만들어도 됩니다. 마운트할 Drive 계정과 달라도 됩니다. 한 번 만들면 다른 PC에서도 그대로 씁니다.
 
-| 단계 | 열리는 페이지 | 할 일 |
-|---|---|---|
-| 1. 프로젝트 만들기 | [새 프로젝트](https://console.cloud.google.com/projectcreate) | 이름 `rclone`(아무거나) → **만들기**. 화면 위쪽에 그 프로젝트가 선택됐는지 확인 |
-| 2. Drive API 켜기 | [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) | **사용** (이미 "관리"가 보이면 켜진 상태) |
-| 3. 동의 화면 | [Google 인증 플랫폼 시작](https://console.cloud.google.com/auth/overview/create) | 앱 이름 `rclone`, 지원 이메일 → 대상 **외부** → 연락처 이메일 → 약관 동의 → **만들기** |
-| 4. 권한 범위 | [데이터 액세스](https://console.cloud.google.com/auth/scopes) | **범위 추가 또는 삭제** → 아래쪽 "수동으로 범위 추가" 칸에 **Ctrl+V** → **표에 추가** → **업데이트** → 맨 아래 **저장** |
-| 5. 게시 | [대상](https://console.cloud.google.com/auth/audience) | 테스트 사용자 **+ Add users**에 내 이메일 → **저장**, 그다음 **앱 게시** → **확인** |
-| 6. 클라이언트 | [클라이언트 만들기](https://console.cloud.google.com/auth/clients/create) | 유형 **데스크톱 앱** → **만들기** → **JSON 다운로드** |
+| 단계 | 메뉴 위치 (≡ 메뉴 기준) | 바로 가기 | 할 일 |
+|---|---|---|---|
+| 1. 프로젝트 만들기 | 화면 위쪽 프로젝트 선택 칸 → **새 프로젝트** | [열기](https://console.cloud.google.com/projectcreate) | 이름 `rclone`(아무거나) → **만들기**. 만든 뒤 위쪽 칸에 그 프로젝트가 선택됐는지 확인 |
+| 2. Drive API 켜기 | API 및 서비스 → 라이브러리 → "Google Drive API" 검색 | [열기](https://console.cloud.google.com/apis/library/drive.googleapis.com) | **사용** (이미 "관리"가 보이면 켜진 상태) |
+| 3. 동의 화면 | Google 인증 플랫폼 → 개요 → **시작하기** | [열기](https://console.cloud.google.com/auth/overview/create) | 앱 이름 `rclone`, 지원 이메일 → 대상 **외부** → 연락처 이메일 → 약관 동의 → **만들기** |
+| 4. 권한 범위 | Google 인증 플랫폼 → **데이터 액세스** | [열기](https://console.cloud.google.com/auth/scopes) | **범위 추가 또는 삭제** → 아래쪽 "수동으로 범위 추가" 칸에 **Ctrl+V** → **표에 추가** → **업데이트** → 맨 아래 **저장** |
+| 5. 게시 | Google 인증 플랫폼 → **대상** | [열기](https://console.cloud.google.com/auth/audience) | 테스트 사용자 **+ Add users**에 내 이메일 → **저장**, 그다음 **앱 게시** → **확인** |
+| 6. 클라이언트 | Google 인증 플랫폼 → **클라이언트** → **클라이언트 만들기** | [열기](https://console.cloud.google.com/auth/clients/create) | 유형 **데스크톱 앱** → **만들기** → **JSON 다운로드** |
 
 4단계에서 클립보드에 복사되는 값은 rclone 문서가 권장하는 범위 세 개입니다.
 ```
