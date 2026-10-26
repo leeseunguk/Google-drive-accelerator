@@ -1,4 +1,4 @@
-# rclone-gdrive-mount
+# Google-drive-accelerator
 
 Google Drive를 **rclone**으로 Windows 드라이브 문자(기본 `R:`)에 마운트하는 스크립트 모음입니다.
 Google Drive for desktop(G:)과 같은 Drive를 쓰면서도 **큰 파일을 처음 읽을 때 약 3배 빠르게** 읽을 수 있도록, 병렬 읽기와 로컬 캐시를 켜 둔 구성입니다.
