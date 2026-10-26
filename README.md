@@ -73,7 +73,7 @@ Google Drive for desktop(G:)과 같은 Drive를 쓰면서도 **큰 파일을 처
 |---|---|---|
 | 1. rclone | 없으면 `winget install Rclone.Rclone` | Rclone UI 내장본이나 PATH의 rclone이 있으면 그대로 사용 |
 | 2. WinFsp | 없으면 `winget install WinFsp.WinFsp` | 관리자 확인(UAC) 창에서 **예** |
-| 3. Google Drive 연결 | remote(`my_gdrive:`)가 없으면 client ID 만들기 마법사 → Google 로그인 | 처음 한 번 |
+| 3. Google Drive 연결 | client ID가 있는지 묻고(없으면 만들기 마법사, 있으면 JSON 파일이나 직접 입력) → Google 로그인. remote는 있는데 로그인이 끊긴 경우 다시 로그인만 합니다 | 처음 한 번 |
 | 4. 자동 시작 | 로그인할 때 자동 마운트할지 질문 | 선택 |
 
 **새 PC에서 실행한 화면** (3단계 client ID 만들기 마법사, 아래 [Google client ID 만들기](#google-client-id-만들기) 참고):
@@ -95,7 +95,17 @@ Google Drive for desktop(G:)과 같은 Drive를 쓰면서도 **큰 파일을 처
 
 ## Google client ID 만들기
 
-`설치.cmd`를 실행하면 3단계에서 **client ID 만들기 마법사**가 시작됩니다. 절차는 [rclone 공식 문서](https://rclone.org/drive/#making-your-own-client-id)를 따르되, 손이 덜 가도록 다음을 자동으로 해 줍니다.
+`설치.cmd` 3단계에서 client ID가 이미 있는지 먼저 묻습니다.
+
+| 선택 | 언제 | 하는 일 |
+|---|---|---|
+| `1` 없음 | 처음 쓰는 경우 | 아래 **만들기 마법사** 실행 |
+| `2` JSON 파일 있음 | 전에 받아 둔 `client_secret_*.json`이 있을 때 | 경로를 입력하거나 창에 끌어다 놓기. 비우면 다운로드 폴더에서 찾음 |
+| `3` 직접 입력 | 다른 PC에서 쓰던 ID와 보안 비밀을 알 때 | 두 값을 붙여 넣기 |
+
+다른 PC에서 이미 만든 client ID는 그대로 다시 써도 됩니다. 로그인(토큰)은 PC마다 따로 합니다.
+
+`1`을 고르면 **client ID 만들기 마법사**가 시작됩니다. 절차는 [rclone 공식 문서](https://rclone.org/drive/#making-your-own-client-id)를 따르되, 손이 덜 가도록 다음을 자동으로 해 줍니다.
 
 - **페이지 자동 열기**: 단계마다 해당 Console 페이지를 브라우저로 바로 엽니다. 메뉴를 찾아다닐 필요가 없습니다.
 - **범위 미리 복사**: 4단계에서 넣을 권한 범위 문자열을 클립보드에 미리 복사해 둡니다. 붙여 넣기(Ctrl+V)만 하면 됩니다.
@@ -158,6 +168,7 @@ Google이 게시 전에 홈페이지 주소와 개인정보처리방침 주소�
 | `설치.cmd` | 의존성 설치와 Google Drive 연결(처음 한 번) |
 | `마운트.cmd` | `R:`로 마운트 |
 | `해제.cmd` | 업로드 대기열이 빌 때까지 기다린 뒤 안전하게 해제 |
+| `재연결.cmd` | Google 로그인만 다시 하기(`empty token`, 로그인 만료 오류일 때) |
 | `자동시작-등록.cmd` | 로그인할 때 자동 마운트(시작프로그램 바로가기, 관리자 권한 불필요) |
 | `자동시작-해제.cmd` | 자동 시작 제거 |
 | `Test-Speed.ps1` | 파일 읽기 속도 측정 |
@@ -225,7 +236,9 @@ ls /mnt/r
 |---|---|
 | `rclone 또는 WinFsp가 없습니다` | `설치.cmd`를 먼저 실행하세요. |
 | `30초 안에 마운트되지 않았습니다` | 출력된 로그 마지막 줄을 확인하세요(`mount.log`). 로그인 만료라면 아래 줄을 보세요. |
-| 며칠 뒤 갑자기 접속이 안 됨 (`invalid_grant`, token expired) | 동의 화면이 테스트 상태입니다. Console에서 **앱 게시**로 프로덕션으로 바꾼 뒤 `rclone config reconnect my_gdrive:`를 실행하세요(Rclone UI 설정을 쓰면 `--config` 경로 지정). |
+| 로그에 `empty token found - please run "rclone config reconnect my_gdrive:"` | remote는 만들어졌지만 Google 로그인이 끝나지 않았습니다(로그인 중 창을 닫았거나 다른 PC에서 설정 파일 일부만 가져온 경우). **`재연결.cmd`** 를 실행해 로그인한 뒤 다시 마운트하세요. |
+| 며칠 뒤 갑자기 접속이 안 됨 (`invalid_grant`, token expired) | 동의 화면이 테스트 상태입니다. Console에서 **앱 게시**로 프로덕션으로 바꾼 뒤 **`재연결.cmd`** 를 실행하세요. |
+| 관리자 권한으로 실행해야 하나요? | **아니요.** 모든 `.cmd`는 그냥 더블클릭하세요. 관리자 권한이 필요한 건 WinFsp 설치 한 번뿐이고, 그때는 확인 창이 자동으로 뜹니다. 관리자로 마운트하면 일반 탐색기에서 드라이브가 안 보일 수 있습니다. |
 | `R: 는 이미 사용 중입니다` | 이미 마운트됐거나 다른 드라이브가 `R:`을 쓰고 있습니다. `config.ps1`에서 `$DriveLetter`를 바꾸세요. |
 | `이 시스템에서 스크립트를 실행할 수 없으므로` | `.ps1`을 직접 실행하지 말고 `.cmd` 파일을 더블클릭하세요(실행 정책을 그 실행에서만 우회합니다). |
 | 로그에 `symlinks not supported without the --links flag` | 마운트할 때마다 나오는 정상 메시지입니다. 무시하세요. |
@@ -251,6 +264,7 @@ rclone-gdrive-mount/
 ├─ 설치.cmd / Install.ps1                 의존성 설치 + Google Drive 연결
 ├─ 마운트.cmd / Mount-GDrive.ps1           마운트
 ├─ 해제.cmd / Unmount-GDrive.ps1           안전한 해제
+├─ 재연결.cmd / Reconnect-GDrive.ps1       Google 로그인만 다시
 ├─ 자동시작-등록.cmd / Install-Autostart.ps1
 ├─ 자동시작-해제.cmd / Uninstall-Autostart.ps1
 ├─ Test-Speed.ps1                         읽기 속도 측정

@@ -50,22 +50,68 @@ function New-ClientIdWizard {
         "애플리케이션 유형: [데스크톱 앱] -> 이름은 그대로 -> [만들기]",
         "나오는 창에서 [JSON 다운로드] 를 누르면 자동으로 읽습니다")
 
-    # 다운로드 폴더에서 방금 받은 client_secret_*.json을 찾습니다.
-    $dl = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
-    $f = Get-ChildItem $dl -Filter "client_secret_*.json" -ErrorAction SilentlyContinue |
-         Where-Object { $_.LastWriteTime -ge $started.AddMinutes(-5) } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if ($f) {
-        $j = (Get-Content $f.FullName -Raw | ConvertFrom-Json).installed
-        if ($j.client_id -and $j.client_secret) {
-            Write-Host "`n   다운로드한 파일에서 읽었습니다: $($f.Name)" -ForegroundColor Green
-            return $j
-        }
-    }
+    $j = Find-ClientJson $started
+    if ($j) { return $j }
     Write-Host "`n   JSON 파일을 찾지 못했습니다. 창에 보이는 값을 복사해 붙여 넣으세요."
+    return Read-ClientManual
+}
+
+# client_secret_*.json에서 ID/비밀을 읽습니다. 경로가 없으면 다운로드 폴더에서 가장 최근 파일을 찾습니다.
+function Read-ClientJson($path) {
+    try { $o = Get-Content $path -Raw -ErrorAction Stop | ConvertFrom-Json } catch { return $null }
+    $j = if ($o.installed) { $o.installed } elseif ($o.web) { $o.web } else { $o }
+    if ($j.client_id -and $j.client_secret) { return [pscustomobject]@{ client_id = $j.client_id; client_secret = $j.client_secret } }
+    return $null
+}
+function Find-ClientJson($since) {
+    $dl = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+    $files = Get-ChildItem $dl -Filter "client_secret_*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+    if ($since) { $files = $files | Where-Object { $_.LastWriteTime -ge $since.AddMinutes(-5) } }
+    foreach ($f in $files) {
+        $j = Read-ClientJson $f.FullName
+        if ($j) { Write-Host "`n   다운로드 폴더의 파일에서 읽었습니다: $($f.Name)" -ForegroundColor Green; return $j }
+    }
+    return $null
+}
+function Read-ClientManual {
     $id  = (Read-Host "   클라이언트 ID").Trim()
     $sec = (Read-Host "   클라이언트 보안 비밀").Trim()
     if (-not $id -or -not $sec) { Write-Host "값이 비어 있습니다. 다시 실행하세요." -ForegroundColor Red; exit 1 }
     return [pscustomobject]@{ client_id = $id; client_secret = $sec }
+}
+
+# 이미 client ID가 있으면 그것을 쓰고, 없으면 마법사로 만듭니다.
+function Get-ClientCredential {
+    Write-Host @"
+   Google client ID가 필요합니다. 이미 있나요?
+   [1] 없음 - 지금 새로 만들기 (안내 마법사, 5분 정도)
+   [2] 있음 - client_secret_....json 파일이 있음
+   [3] 있음 - 클라이언트 ID와 보안 비밀을 직접 입력
+   (다른 PC에서 이미 만들었다면 그 ID를 그대로 써도 됩니다)
+"@
+    switch ((Read-Host "   번호").Trim()) {
+        "2" {
+            $p = (Read-Host "   JSON 파일 경로 (창에 끌어다 놓아도 됨, 비우면 다운로드 폴더에서 찾기)").Trim().Trim('"')
+            $j = if ($p) { Read-ClientJson $p } else { Find-ClientJson $null }
+            if (-not $j) { Write-Host "   JSON에서 ID/비밀을 읽지 못했습니다. 직접 입력하세요." -ForegroundColor Yellow; $j = Read-ClientManual }
+            return $j
+        }
+        "3" { return Read-ClientManual }
+        default { return New-ClientIdWizard }
+    }
+}
+
+# remote가 실제로 Drive에 접속되는지 확인합니다(토큰 없음/만료 감지).
+function Test-Remote { & $RcloneExe --config $RcloneConf about "${RemoteName}:" *> $null; return ($LASTEXITCODE -eq 0) }
+function Show-LoginHint {
+    Write-Host @"
+
+   브라우저에서 Google 로그인 창이 열립니다. 마운트할 Drive 계정으로 로그인하세요.
+   'Google에서 확인하지 않은 앱' 경고가 나오면: [고급] -> [rclone(으)로 이동(안전하지 않음)] -> [계속]
+   (내가 만든 앱이라 검증을 받지 않았을 뿐입니다. 개인용이면 검증이 필요 없습니다)
+   브라우저에 'Success!'가 보일 때까지 이 창을 닫지 마세요.
+   영어 질문이 나오면 Enter(기본값)를 누르면 됩니다.
+"@
 }
 
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
@@ -93,25 +139,28 @@ else {
 
 Step "3/4 Google Drive 연결 ($RemoteName)"
 $remotes = & $RcloneExe --config $RcloneConf listremotes 2>$null
-if ($remotes -contains "${RemoteName}:") { Ok "이미 설정됨 ($RcloneConf)" }
+if ($remotes -contains "${RemoteName}:") {
+    if (Test-Remote) { Ok "이미 연결됨 ($RcloneConf)" }
+    else {
+        # remote는 있는데 로그인 토큰이 없거나 만료된 경우(로그인 중 창을 닫았거나, 테스트 상태 앱의 7일 만료 등)
+        Write-Host "   remote는 있지만 Drive에 접속되지 않습니다(로그인 정보 없음 또는 만료). 다시 로그인합니다." -ForegroundColor Yellow
+        Show-LoginHint
+        & $RcloneExe --config $RcloneConf config reconnect "${RemoteName}:"
+        if (-not (Test-Remote)) { Write-Host "다시 로그인했지만 접속되지 않습니다. 설치.cmd를 다시 실행하세요." -ForegroundColor Red; exit 1 }
+        Ok "다시 연결됨"
+    }
+}
 else {
-    # rclone 공용 client ID는 2026년 중 사용 중단 예정이라 내 client ID를 만듭니다.
-    # 절차는 rclone 공식 문서(https://rclone.org/drive/#making-your-own-client-id)를 따릅니다.
-    $clientJson = New-ClientIdWizard
-    $id = $clientJson.client_id; $sec = $clientJson.client_secret
-    $kv = @("scope=drive", "client_id=$id", "client_secret=$sec")
-    Write-Host @"
-
-   브라우저에서 Google 로그인 창이 열립니다. 마운트할 Drive 계정으로 로그인하세요.
-   'Google에서 확인하지 않은 앱' 경고가 나오면: [고급] -> [rclone(으)로 이동(안전하지 않음)] -> [계속]
-   (내가 만든 앱이라 검증을 받지 않았을 뿐입니다. 개인용이면 검증이 필요 없습니다)
-"@
+    # rclone 공용 client ID는 2026년 중 사용 중단 예정이라 내 client ID를 씁니다.
+    # 만드는 절차는 rclone 공식 문서(https://rclone.org/drive/#making-your-own-client-id)를 따릅니다.
+    $cred = Get-ClientCredential
+    $kv = @("scope=drive", "client_id=$($cred.client_id)", "client_secret=$($cred.client_secret)")
+    Show-LoginHint
     New-Item -ItemType Directory -Force (Split-Path $RcloneConf) | Out-Null
     & $RcloneExe --config $RcloneConf config create $RemoteName drive @kv
     $remotes = & $RcloneExe --config $RcloneConf listremotes 2>$null
     if ($remotes -notcontains "${RemoteName}:") { Write-Host "remote 생성에 실패했습니다." -ForegroundColor Red; exit 1 }
-    & $RcloneExe --config $RcloneConf lsd "${RemoteName}:" --max-depth 1 | Select-Object -First 3
-    if ($LASTEXITCODE -ne 0) { Write-Host "Drive 접속 확인에 실패했습니다. 로그인/허용 단계를 확인하고 다시 실행하세요." -ForegroundColor Red; exit 1 }
+    if (-not (Test-Remote)) { Write-Host "Drive 접속 확인에 실패했습니다. 설치.cmd를 다시 실행하면 로그인만 다시 합니다." -ForegroundColor Red; exit 1 }
     Ok "연결됨: $RcloneConf"
 }
 
