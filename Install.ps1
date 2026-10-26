@@ -114,6 +114,9 @@ function Show-LoginHint {
 "@
 }
 
+# PATH가 깨진 PC 대비: 시스템 폴더와 winget 위치를 이번 실행의 PATH에 보탭니다.
+$env:Path = (@("$env:SystemRoot\System32", "$env:SystemRoot", "$env:SystemRoot\System32\WindowsPowerShell\v1.0",
+              "$env:LOCALAPPDATA\Microsoft\WindowsApps") + ($env:Path -split ";") | Where-Object { $_ } | Select-Object -Unique) -join ";"
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Host "winget이 없습니다. Microsoft Store에서 '앱 설치 관리자'를 설치한 뒤 다시 실행하세요." -ForegroundColor Red
     exit 1
