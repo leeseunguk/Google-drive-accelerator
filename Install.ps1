@@ -148,8 +148,8 @@ if ($remotes -contains "${RemoteName}:") {
         # remote는 있는데 로그인 토큰이 없거나 만료된 경우(로그인 중 창을 닫았거나, 테스트 상태 앱의 7일 만료 등)
         Write-Host "   remote는 있지만 Drive에 접속되지 않습니다(로그인 정보 없음 또는 만료). 다시 로그인합니다." -ForegroundColor Yellow
         Show-LoginHint
+        & $RcloneExe --config $RcloneConf config update $RemoteName scope=drive team_drive= root_folder_id= shared_with_me=false --non-interactive *> $null
         & $RcloneExe --config $RcloneConf config reconnect "${RemoteName}:"
-        & $RcloneExe --config $RcloneConf config update $RemoteName team_drive= root_folder_id= shared_with_me=false --non-interactive *> $null
         if (-not (Test-Remote)) { Write-Host "다시 로그인했지만 접속되지 않습니다. 설치.cmd를 다시 실행하세요." -ForegroundColor Red; exit 1 }
         Ok "다시 연결됨"
     }
@@ -166,6 +166,7 @@ else {
     if ($remotes -notcontains "${RemoteName}:") { Write-Host "remote 생성에 실패했습니다." -ForegroundColor Red; exit 1 }
     if (-not (Test-Remote)) { Write-Host "Drive 접속 확인에 실패했습니다. 설치.cmd를 다시 실행하면 로그인만 다시 합니다." -ForegroundColor Red; exit 1 }
     Ok "연결됨: $RcloneConf"
+    Show-RemoteInfo $RcloneExe $RcloneConf $RemoteName
 }
 
 Step "4/4 자동 시작"

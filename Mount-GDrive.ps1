@@ -39,7 +39,7 @@ if ($NetworkDrive) { $rcArgs += "--network-mode" }
 $RemoteName = ($Remote -split ":")[0]
 $cfgJson = & $RcloneExe --config $RcloneConf config dump 2>$null | Out-String | ConvertFrom-Json
 $rc = $cfgJson.$RemoteName
-if ($rc -and ($rc.team_drive -or $rc.root_folder_id -or $rc.shared_with_me -eq "true")) {
+if ($rc -and ($rc.team_drive -or $rc.root_folder_id -or $rc.shared_with_me -eq "true" -or ($rc.scope -and $rc.scope -notmatch "(^|,)drive(,|$)"))) {
     Write-Host "주의: remote가 내 드라이브 전체가 아니라 공유 드라이브/공유 문서함/특정 폴더로 설정돼 있습니다. 재연결.cmd를 실행하면 내 드라이브로 되돌립니다." -ForegroundColor Yellow
 }
 
