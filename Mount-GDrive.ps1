@@ -29,10 +29,20 @@ $rcArgs = @(
     "--buffer-size", "64M",
     "--dir-cache-time", "1h",
     "--poll-interval", "1m",
-    "--network-mode",
+    "--volname", "`"$VolumeName`"",
     "--rc", "--rc-addr", "127.0.0.1:$RcPort", "--rc-no-auth",
     "--log-file", "`"$log`"", "--log-level", "INFO"
 )
+if ($NetworkDrive) { $rcArgs += "--network-mode" }
+
+# 내 드라이브 전체가 보이도록, 공유 드라이브/공유 문서함/특정 폴더 설정이 들어 있으면 경고합니다.
+$RemoteName = ($Remote -split ":")[0]
+$cfgJson = & $RcloneExe --config $RcloneConf config dump 2>$null | Out-String | ConvertFrom-Json
+$rc = $cfgJson.$RemoteName
+if ($rc -and ($rc.team_drive -or $rc.root_folder_id -or $rc.shared_with_me -eq "true")) {
+    Write-Host "주의: remote가 내 드라이브 전체가 아니라 공유 드라이브/공유 문서함/특정 폴더로 설정돼 있습니다. 재연결.cmd를 실행하면 내 드라이브로 되돌립니다." -ForegroundColor Yellow
+}
+
 $logStart = if (Test-Path $log) { (Get-Item $log).Length } else { 0 }
 $p = Start-Process -FilePath $RcloneExe -ArgumentList $rcArgs -WindowStyle Hidden -PassThru
 

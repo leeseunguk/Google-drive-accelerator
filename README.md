@@ -34,7 +34,7 @@ Google Drive for desktop(G:)과 같은 Drive를 쓰면서도 **큰 파일을 처
 
 ![내 PC에 R: 드라이브가 생긴 모습](docs/images/explorer.png)
 
-*실제 화면입니다. `R:`은 "네트워크 위치"에 `my_gdrive(\\server) (R:)`로 나타나고, 용량은 Drive 저장 공간 기준으로 표시됩니다. 위의 `Google Drive (G:)`는 기존 Drive for desktop입니다.*
+*이전 버전 화면입니다. 지금 버전은 `R:`이 "네트워크 위치"가 아니라 일반 디스크 `Google Drive (rclone) (R:)`로 표시됩니다. 예전처럼 네트워크 위치로 보이게 하려면 `config.ps1`에서 `$NetworkDrive = $true`로 바꾸세요.*
 
 ---
 
@@ -168,7 +168,7 @@ Google이 게시 전에 홈페이지 주소와 개인정보처리방침 주소�
 | `설치.cmd` | 의존성 설치와 Google Drive 연결(처음 한 번) |
 | `마운트.cmd` | `R:`로 마운트 |
 | `해제.cmd` | 업로드 대기열이 빌 때까지 기다린 뒤 안전하게 해제 |
-| `재연결.cmd` | Google 로그인만 다시 하기(`empty token`, 로그인 만료 오류일 때) |
+| `재연결.cmd` | Google 로그인을 다시 하고, 마운트를 자동으로 해제했다가 다시 겁니다(`empty token`, 로그인 만료 오류일 때) |
 | `자동시작-등록.cmd` | 로그인할 때 자동 마운트(시작프로그램 바로가기, 관리자 권한 불필요) |
 | `자동시작-해제.cmd` | 자동 시작 제거 |
 | `Test-Speed.ps1` | 파일 읽기 속도 측정 |
@@ -194,6 +194,8 @@ Google이 게시 전에 홈페이지 주소와 개인정보처리방침 주소�
 | `$CacheMaxAge` | `168h` | 캐시 보관 기간(7일) |
 | `$ChunkStreams` | `8` | 파일 하나를 동시에 읽는 스트림 수. 다운로드 속도 핵심 |
 | `$ChunkSize` | `64M` | 스트림 하나가 한 번에 읽는 크기 |
+| `$NetworkDrive` | `$false` | `$true`면 탐색기에 "네트워크 위치(공유 폴더)"로, `$false`면 일반 디스크로 표시 |
+| `$VolumeName` | `Google Drive (rclone)` | 탐색기에 보이는 드라이브 이름 |
 | `$RcPort` | `5573` | 안전한 해제용 원격 제어 포트(로컬 전용) |
 | `$RcloneExe` / `$RcloneConf` | 자동 탐색 | rclone 실행 파일과 설정 파일 위치 |
 
@@ -212,7 +214,7 @@ rclone 설정 파일은 다음 순서로 찾습니다. Rclone UI 설정(`%LOCALA
 | `--vfs-cache-mode full` | 읽고 쓴 데이터를 로컬 캐시에 둡니다. 다시 열면 바로 열리고, 프로그램이 파일 중간을 읽거나 써도 안정적입니다. |
 | `--vfs-cache-max-size`, `--vfs-cache-max-age` | 캐시 용량과 보관 기간 한도입니다. |
 | `--dir-cache-time 1h`, `--poll-interval 1m` | 폴더 목록을 1시간 기억하고, Drive 쪽 변경은 1분마다 확인합니다. |
-| `--network-mode` | 탐색기에 네트워크 드라이브로 표시합니다. |
+| `--volname` | 탐색기에 보이는 드라이브 이름입니다. `$NetworkDrive = $true`일 때만 `--network-mode`로 네트워크 위치로 표시합니다. |
 | `--rc --rc-addr 127.0.0.1:5573` | `해제.cmd`가 업로드 대기열을 확인하고 정상 종료할 때 씁니다. |
 | `--log-file` | 로그는 `D:\rclone-cache\gdrive\mount.log`에 남습니다. |
 
@@ -239,6 +241,8 @@ ls /mnt/r
 | 로그에 `empty token found - please run "rclone config reconnect my_gdrive:"` | remote는 만들어졌지만 Google 로그인이 끝나지 않았습니다(로그인 중 창을 닫았거나 다른 PC에서 설정 파일 일부만 가져온 경우). **`재연결.cmd`** 를 실행해 로그인한 뒤 다시 마운트하세요. |
 | 며칠 뒤 갑자기 접속이 안 됨 (`invalid_grant`, token expired) | 동의 화면이 테스트 상태입니다. Console에서 **앱 게시**로 프로덕션으로 바꾼 뒤 **`재연결.cmd`** 를 실행하세요. |
 | `'powershell' is not recognized ...` (관리자로 실행할 때만 됨) | 그 PC의 사용자 PATH에서 Windows 시스템 폴더가 빠진 경우입니다. 최신 버전의 `.cmd`는 PowerShell을 전체 경로로 실행하므로 레포를 다시 받으면 해결됩니다. 다른 프로그램도 같은 문제를 겪을 수 있으니, "시스템 환경 변수 편집" → 환경 변수 → 사용자 변수 `Path`에 `%SystemRoot%\System32\WindowsPowerShell\v1.0`과 `%SystemRoot%\System32`가 있는지 확인해 보세요. |
+| 공유 드라이브나 공유 문서함만 보이고 내 드라이브 파일이 안 보임 | 로그인할 때 `Configure this as a Shared Drive (Team Drive)?`에 y를 눌렀거나 remote에 특정 폴더가 지정된 경우입니다. **`재연결.cmd`** 를 실행하면 그 설정을 비워 내 드라이브 전체로 되돌리고 다시 마운트합니다. 마운트할 때 이런 설정이 있으면 경고도 표시됩니다. |
+| 탐색기에서 `R:`이 "네트워크 위치"(공유 폴더)로 보임 | 이전 버전 동작입니다. 지금은 일반 디스크로 표시합니다. 파일 기능은 같습니다. |
 | 관리자 권한으로 실행해야 하나요? | **아니요.** 모든 `.cmd`는 그냥 더블클릭하세요. 관리자 권한이 필요한 건 WinFsp 설치 한 번뿐이고, 그때는 확인 창이 자동으로 뜹니다. 관리자로 마운트하면 일반 탐색기에서 드라이브가 안 보일 수 있습니다. |
 | `R: 는 이미 사용 중입니다` | 이미 마운트됐거나 다른 드라이브가 `R:`을 쓰고 있습니다. `config.ps1`에서 `$DriveLetter`를 바꾸세요. |
 | `이 시스템에서 스크립트를 실행할 수 없으므로` | `.ps1`을 직접 실행하지 말고 `.cmd` 파일을 더블클릭하세요(실행 정책을 그 실행에서만 우회합니다). |
@@ -265,7 +269,7 @@ rclone-gdrive-mount/
 ├─ 설치.cmd / Install.ps1                 의존성 설치 + Google Drive 연결
 ├─ 마운트.cmd / Mount-GDrive.ps1           마운트
 ├─ 해제.cmd / Unmount-GDrive.ps1           안전한 해제
-├─ 재연결.cmd / Reconnect-GDrive.ps1       Google 로그인만 다시
+├─ 재연결.cmd / Reconnect-GDrive.ps1       Google 로그인 다시 + 자동 재마운트
 ├─ 자동시작-등록.cmd / Install-Autostart.ps1
 ├─ 자동시작-해제.cmd / Uninstall-Autostart.ps1
 ├─ Test-Speed.ps1                         읽기 속도 측정

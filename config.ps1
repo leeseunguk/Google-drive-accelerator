@@ -23,4 +23,6 @@ $CacheMaxSize = "100G"              # 로컬 캐시 최대 용량
 $CacheMaxAge  = "168h"              # 캐시 보관 기간
 $ChunkStreams = 8                   # 파일 하나를 동시에 읽는 스트림 수 (속도 핵심)
 $ChunkSize    = "64M"
+$NetworkDrive = $false             # $true면 탐색기에 '네트워크 위치(공유 폴더)'로, $false면 일반 디스크로 표시
+$VolumeName   = "Google Drive (rclone)"   # 탐색기에 보일 드라이브 이름
 $RcPort       = 5573                # 안전한 해제용 원격 제어 포트 (Rclone UI는 5572 사용)

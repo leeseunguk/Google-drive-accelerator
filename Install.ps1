@@ -110,7 +110,7 @@ function Show-LoginHint {
    'Google에서 확인하지 않은 앱' 경고가 나오면: [고급] -> [rclone(으)로 이동(안전하지 않음)] -> [계속]
    (내가 만든 앱이라 검증을 받지 않았을 뿐입니다. 개인용이면 검증이 필요 없습니다)
    브라우저에 'Success!'가 보일 때까지 이 창을 닫지 마세요.
-   영어 질문이 나오면 Enter(기본값)를 누르면 됩니다.
+   'Configure this as a Shared Drive (Team Drive)?' 질문이 나오면 n 을 누르세요(Enter도 n).
 "@
 }
 
@@ -149,6 +149,7 @@ if ($remotes -contains "${RemoteName}:") {
         Write-Host "   remote는 있지만 Drive에 접속되지 않습니다(로그인 정보 없음 또는 만료). 다시 로그인합니다." -ForegroundColor Yellow
         Show-LoginHint
         & $RcloneExe --config $RcloneConf config reconnect "${RemoteName}:"
+        & $RcloneExe --config $RcloneConf config update $RemoteName team_drive= root_folder_id= shared_with_me=false --non-interactive *> $null
         if (-not (Test-Remote)) { Write-Host "다시 로그인했지만 접속되지 않습니다. 설치.cmd를 다시 실행하세요." -ForegroundColor Red; exit 1 }
         Ok "다시 연결됨"
     }
@@ -157,7 +158,7 @@ else {
     # rclone 공용 client ID는 2026년 중 사용 중단 예정이라 내 client ID를 씁니다.
     # 만드는 절차는 rclone 공식 문서(https://rclone.org/drive/#making-your-own-client-id)를 따릅니다.
     $cred = Get-ClientCredential
-    $kv = @("scope=drive", "client_id=$($cred.client_id)", "client_secret=$($cred.client_secret)")
+    $kv = @("scope=drive", "client_id=$($cred.client_id)", "client_secret=$($cred.client_secret)", "team_drive=")
     Show-LoginHint
     New-Item -ItemType Directory -Force (Split-Path $RcloneConf) | Out-Null
     & $RcloneExe --config $RcloneConf config create $RemoteName drive @kv
